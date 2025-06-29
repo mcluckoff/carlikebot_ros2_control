@@ -277,11 +277,11 @@ hardware_interface::return_type CarlikeBotSystemHardware::read(
   double delta_seconds = period.seconds();
 
   double pos_prev = wheel_rl_.pos;
-  wheel_rl_.pos = wheel_rl_.calc_enc_angle();
+  wheel_rl_.pos = wheel_rl_.calcEncAngle();
   wheel_rl_.vel = (wheel_rl_.pos - pos_prev) / delta_seconds;
 
   pos_prev = wheel_rr_.pos;
-  wheel_rr_.pos = wheel_rr_.calc_enc_angle();
+  wheel_rr_.pos = wheel_rr_.calcEncAngle();
   wheel_rr_.vel = (wheel_rr_.pos - pos_prev) / delta_seconds;
 
   return hardware_interface::return_type::OK;

@@ -33,8 +33,8 @@
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
-#include "ros_control_demo_example_11/arduino_comms.hpp"
-#include "ros_control_demo_example_11/wheel.hpp"
+#include "carlikebot_ros2_control/arduino_comms.hpp"
+#include "carlikebot_ros2_control/wheel.hpp"
 
 namespace carlikebot_ros2_control
 {
@@ -71,7 +71,7 @@ struct Config
   int baud_rate = 0;
   int timeout_ms = 0;
   int enc_counts_per_rev = 0;
-}
+};
 
 class CarlikeBotSystemHardware : public hardware_interface::SystemInterface
 {
@@ -107,13 +107,13 @@ public:
   /**
    * \return logger of the SystemInterface.
    */
-  rclcpp::Logger get_logger() const { return *logger_; }
+  // rclcpp::Logger get_logger() const { return *logger_; }
 
   /// Get the clock of the SystemInterface.
   /**
    * \return clock of the SystemInterface.
    */
-  rclcpp::Clock::SharedPtr get_clock() const { return clock_; }
+  // rclcpp::Clock::SharedPtr get_clock() const { return clock_; }
 
 private:
   ArduinoComms comms_;
@@ -122,6 +122,9 @@ private:
   Wheel wheel_fr_;
   Wheel wheel_rl_;
   Wheel wheel_rr_;
+
+  rclcpp::Logger logger_;
+  std::chrono::time_point<std::chrono::system_clock> time_;
 };
 
 }  // namespace carlikebot_ros2_control

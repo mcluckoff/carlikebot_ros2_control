@@ -27,7 +27,7 @@ def generate_launch_description():
     declared_arguments.append(
         DeclareLaunchArgument(
             "description_package",
-            default_value="ros2_control_demo_description",
+            default_value="carlikebot_ros2_control",
             description="Description package with robot URDF/xacro files. Usually the argument \
         is not set, it enables use of a custom description.",
         )
@@ -79,7 +79,7 @@ def generate_launch_description():
     robot_description = {"robot_description": robot_description_content}
 
     rviz_config_file = PathJoinSubstitution(
-        [FindPackageShare(description_package), "carlikebot/rviz", "carlikebot_view.rviz"]
+        [FindPackageShare(description_package), "description/rviz", "carlikebot_view.rviz"]
     )
 
     joint_state_publisher_node = Node(

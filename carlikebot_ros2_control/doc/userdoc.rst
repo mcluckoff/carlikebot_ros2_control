@@ -17,7 +17,7 @@ This example shows how to use the bicycle steering controller to control a carli
 * The communication is done using proprietary API to communicate with the robot control box.
 * Data for all joints is exchanged at once.
 
-The *CarlikeBot* URDF files can be found in ``ros2_control_demo_description/carlikebot/urdf`` folder.
+The *CarlikeBot* URDF files can be found in ``carlikebot_ros2_control/description/urdf`` folder.
 
 .. include:: ../../doc/run_from_docker.rst
 
