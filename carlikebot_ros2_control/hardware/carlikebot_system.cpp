@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "ros2_control_demo_example_11/carlikebot_system.hpp"
+#include "carlikebot_ros2_control/carlikebot_system.hpp"
 
 #include <chrono>
 #include <cmath>
@@ -26,7 +26,7 @@
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 #include "rclcpp/rclcpp.hpp"
 
-namespace ros2_control_demo_example_11
+namespace carlikebot_ros2_control
 {
 hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_init(
   const hardware_interface::HardwareInfo & info)
@@ -140,6 +140,19 @@ hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_init(
     }
   }
 
+  cfg_.rear_left_wheel_name = info_.hardware_parameters["rear_left_wheel_name"];
+  cfg_.rear_right_wheel_name = info_.hardware_parameters["rear_right_wheel_name"];
+  cfg_.front_left_steering_name = info_.hardware_parameters["front_left_steering_name"];
+  cfg_.front_right_steering_name = info_.hardware_parameters["front_right_steering_name"];
+  cfg_.loop_rate = std::stof(info_.hardware_parameters["loop_rate"]);
+  cfg_.device = info_.hardware_parameters["device"];
+  cfg_.baud_rate = std::stoi(info_.hardware_parameters["baud_rate"]);  
+  cfg_.timeout_ms = std::stoi(info_.hardware_parameters["timeout_ms"]);  
+  cfg_.enc_counts_per_rev = std::stoi(info_.hardware_parameters["enc_counts_per_rev"]);
+
+  wheel_rl_.setup(cfg_.rear_left_wheel_name, cfg_.enc_counts_per_rev);
+  wheel_rr_.setup(cfg_.rear_right_wheel_name, cfg_.enc_counts_per_rev);
+
   // // BEGIN: This part here is for exemplary purposes - Please do not copy to your production
   // code
   hw_start_sec_ = std::stod(info_.hardware_parameters["example_param_hw_start_duration_sec"]);
@@ -157,20 +170,22 @@ std::vector<hardware_interface::StateInterface> CarlikeBotSystemHardware::export
 {
   std::vector<hardware_interface::StateInterface> state_interfaces;
 
-  for (auto & joint : hw_interfaces_)
-  {
-    state_interfaces.emplace_back(
-      hardware_interface::StateInterface(
-        joint.second.joint_name, hardware_interface::HW_IF_POSITION, &joint.second.state.position));
+  state_interfaces.emplace_back(
+    hardware_interface::StateInterface(
+      wheel_rl_.name, hardware_interface::HW_IF_POSITION, &wheel_rl_.vel));
+      
+  state_interfaces.emplace_back(
+    hardware_interface::StateInterface(
+      wheel_rr_.name, hardware_interface::HW_IF_POSITION, &wheel_rr_.vel));
 
-    if (joint.first == "traction")
-    {
-      state_interfaces.emplace_back(
-        hardware_interface::StateInterface(
-          joint.second.joint_name, hardware_interface::HW_IF_VELOCITY,
-          &joint.second.state.velocity));
-    }
-  }
+  state_interfaces.emplace_back(
+    hardware_interface::StateInterface(
+      wheel_fl_.name, hardware_interface::HW_IF_POSITION, &wheel_fl_.pos));
+      
+  state_interfaces.emplace_back(
+    hardware_interface::StateInterface(
+      wheel_fr_.name, hardware_interface::HW_IF_POSITION, &wheel_fr_.pos));      
+
 
   RCLCPP_INFO(get_logger(), "Exported %zu state interfaces.", state_interfaces.size());
 
@@ -182,29 +197,27 @@ std::vector<hardware_interface::StateInterface> CarlikeBotSystemHardware::export
   return state_interfaces;
 }
 
-std::vector<hardware_interface::CommandInterface>
-CarlikeBotSystemHardware::export_command_interfaces()
+std::vector<hardware_interface::CommandInterface> CarlikeBotSystemHardware::export_command_interfaces()
 {
   std::vector<hardware_interface::CommandInterface> command_interfaces;
 
-  for (auto & joint : hw_interfaces_)
-  {
-    if (joint.first == "steering")
-    {
-      command_interfaces.emplace_back(
+  command_interfaces.emplace_back(
         hardware_interface::CommandInterface(
-          joint.second.joint_name, hardware_interface::HW_IF_POSITION,
-          &joint.second.command.position));
-    }
-    else if (joint.first == "traction")
-    {
-      command_interfaces.emplace_back(
+          wheel_rl_.name, hardware_interface::HW_IF_POSITION,
+          &wheel_rl_.cmd));
+  command_interfaces.emplace_back(
         hardware_interface::CommandInterface(
-          joint.second.joint_name, hardware_interface::HW_IF_VELOCITY,
-          &joint.second.command.velocity));
-    }
-  }
-
+          wheel_rr_.name, hardware_interface::HW_IF_POSITION,
+          &wheel_rr_.cmd));
+  command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(
+          wheel_fl_.name, hardware_interface::HW_IF_POSITION,
+          &wheel_fl_.cmd));
+  command_interfaces.emplace_back(
+        hardware_interface::CommandInterface(
+          wheel_fr_.name, hardware_interface::HW_IF_POSITION,
+          &wheel_fr_.cmd));                        
+  
   RCLCPP_INFO(get_logger(), "Exported %zu command interfaces.", command_interfaces.size());
 
   for (auto i = 0u; i < command_interfaces.size(); i++)
@@ -216,13 +229,31 @@ CarlikeBotSystemHardware::export_command_interfaces()
   return command_interfaces;
 }
 
+hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_configure(
+  const rclcpp_lifecycle::State & /*previous_state*/)
+{
+  RCLCPP_INFO(get_logger(), "Configuring ...please wait...");
+  comms_.connect(cfg_.device, cfg_.baud_rate, cfg_.timeout_ms);
+  RCLCPP_INFO(get_logger(), "Successfully configured!");
+
+  return hardware_interface::CallbackReturn::SUCCESS;
+}
+
+hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_cleanup(
+  const rclcpp_lifecycle::State & /*previous_state*/)
+{
+  RCLCPP_INFO(get_logger(), "Cleaning up ...please wait...");
+  comms_.disconnect();
+  RCLCPP_INFO(get_logger(), "Successfully cleaned up!");
+
+  return hardware_interface::CallbackReturn::SUCCESS;
+}
+
 hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
   RCLCPP_INFO(get_logger(), "Activating ...please wait...");
-
-  // comms_.connect();
-
+  comms_.set_pid_values(20,15,1,25);
   RCLCPP_INFO(get_logger(), "Successfully activated!");
 
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -233,8 +264,6 @@ hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_deactivate(
 {
   RCLCPP_INFO(get_logger(), "Deactivating ...please wait...");
 
-  // comms_.disconnect();
-
   RCLCPP_INFO(get_logger(), "Successfully deactivated!");
 
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -243,21 +272,32 @@ hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_deactivate(
 hardware_interface::return_type CarlikeBotSystemHardware::read(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
-  // comms_.read_encoder_values();
+  comms_.read_encoder_values(wheel_rl_.enc, wheel_rr_.enc);
+
+  double delta_seconds = period.seconds();
+
+  double pos_prev = wheel_rl_.pos;
+  wheel_rl_.pos = wheel_rl_.calc_enc_angle();
+  wheel_rl_.vel = (wheel_rl_.pos - pos_prev) / delta_seconds;
+
+  pos_prev = wheel_rr_.pos;
+  wheel_rr_.pos = wheel_rr_.calc_enc_angle();
+  wheel_rr_.vel = (wheel_rr_.pos - pos_prev) / delta_seconds;
 
   return hardware_interface::return_type::OK;
 }
 
-hardware_interface::return_type ros2_control_demo_example_11 ::CarlikeBotSystemHardware::write(
+hardware_interface::return_type carlikebot_ros2_control ::CarlikeBotSystemHardware::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
-  // comms_.set_motor_values();
-
+  int motor_rl_counts_per_loop = wheel_rl_.cmd / wheel_rl_.rads_per_count / cfg_.loop_rate;
+  int motor_rr_counts_per_loop = wheel_rr_.cmd / wheel_rr_.rads_per_count / cfg_.loop_rate;
+  comms_.set_motor_values(motor_rl_counts_per_loop, motor_rr_counts_per_loop);
   return hardware_interface::return_type::OK;
 }
 
-}  // namespace ros2_control_demo_example_11
+}  // namespace carlikebot_ros2_control
 
 #include "pluginlib/class_list_macros.hpp"
 PLUGINLIB_EXPORT_CLASS(
-  ros2_control_demo_example_11::CarlikeBotSystemHardware, hardware_interface::SystemInterface)
+  carlikebot_ros2_control::CarlikeBotSystemHardware, hardware_interface::SystemInterface)

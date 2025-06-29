@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ROS2_CONTROL_DEMO_EXAMPLE_11__CARLIKEBOT_SYSTEM_HPP_
-#define ROS2_CONTROL_DEMO_EXAMPLE_11__CARLIKEBOT_SYSTEM_HPP_
+#ifndef CARLIKEBOT_ROS2_CONTROL__CARLIKEBOT_SYSTEM_HPP_
+#define CARLIKEBOT_ROS2_CONTROL__CARLIKEBOT_SYSTEM_HPP_
 
 #include <map>
 #include <memory>
@@ -34,8 +34,9 @@
 #include "rclcpp_lifecycle/state.hpp"
 
 #include "ros_control_demo_example_11/arduino_comms.hpp"
+#include "ros_control_demo_example_11/wheel.hpp"
 
-namespace ros2_control_demo_example_11
+namespace carlikebot_ros2_control
 {
 struct JointValue
 {
@@ -84,11 +85,17 @@ public:
 
   std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
 
+  hardware_interface::CallbackReturn on_configure(
+    const rclcpp_lifecycle::State & previous_state) override;
+
+  hardware_interface::CallbackReturn on_cleanup(
+    const rclcpp_lifecycle::State & previous_state) override;
+  
   hardware_interface::CallbackReturn on_activate(
     const rclcpp_lifecycle::State & previous_state) override;
 
   hardware_interface::CallbackReturn on_deactivate(
-    const rclcpp_lifecycle::State & previous_state) override;
+    const rclcpp_lifecycle::State & previous_state) override;    
 
   hardware_interface::return_type read(
     const rclcpp::Time & time, const rclcpp::Duration & period) override;
@@ -111,8 +118,12 @@ public:
 private:
   ArduinoComms comms_;
   Config cfg_;
+  Wheel wheel_fl_;
+  Wheel wheel_fr_;
+  Wheel wheel_rl_;
+  Wheel wheel_rr_;
 };
 
-}  // namespace ros2_control_demo_example_11
+}  // namespace carlikebot_ros2_control
 
-#endif  // ROS2_CONTROL_DEMO_EXAMPLE_11__CARLIKEBOT_SYSTEM_HPP_
+#endif  // CARLIKEBOT_ROS2_CONTROL__CARLIKEBOT_SYSTEM_HPP_
