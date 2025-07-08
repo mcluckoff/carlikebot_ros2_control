@@ -79,7 +79,7 @@ def generate_launch_description():
         output="both",
         remappings=[
             ("~/robot_description", "/robot_description"),
-            ("/bicycle_steering_controller/tf_odometry", "/tf"),
+            ("/ackermann_steering_controller/tf_odometry", "/tf"),
         ],
         condition=IfCondition(remap_odometry_tf),
     )
@@ -93,7 +93,7 @@ def generate_launch_description():
         ],
         condition=UnlessCondition(remap_odometry_tf),
     )
-    robot_state_pub_bicycle_node = Node(
+    robot_state_pub_ackermann_node = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
         output="both",
@@ -114,10 +114,10 @@ def generate_launch_description():
         arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
     )
 
-    robot_bicycle_controller_spawner = Node(
+    robot_ackermann_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["bicycle_steering_controller", "--controller-manager", "/controller_manager"],
+        arguments=["ackermann_steering_controller", "--controller-manager", "/controller_manager"],
     )
 
     # Delay rviz start after `joint_state_broadcaster`
@@ -132,7 +132,7 @@ def generate_launch_description():
     # TODO(anyone): This is a workaround for flaky tests. Remove when fixed.
     delay_joint_state_broadcaster_after_robot_controller_spawner = RegisterEventHandler(
         event_handler=OnProcessExit(
-            target_action=robot_bicycle_controller_spawner,
+            target_action=robot_ackermann_controller_spawner,
             on_exit=[joint_state_broadcaster_spawner],
         )
     )
@@ -140,8 +140,8 @@ def generate_launch_description():
     nodes = [
         control_node,
         control_node_remapped,
-        robot_state_pub_bicycle_node,
-        robot_bicycle_controller_spawner,
+        robot_state_pub_ackermann_node,
+        robot_ackermann_controller_spawner,
         delay_joint_state_broadcaster_after_robot_controller_spawner,
         delay_rviz_after_joint_state_broadcaster_spawner,
     ]

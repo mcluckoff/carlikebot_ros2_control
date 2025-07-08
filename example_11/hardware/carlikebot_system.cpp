@@ -42,12 +42,12 @@ hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_init(
   clock_ = std::make_shared<rclcpp::Clock>(rclcpp::Clock());
 
   // Check if the number of joints is correct based on the mode of operation
-  if (info_.joints.size() != 2)
+  if (info_.joints.size() != 4)
   {
     RCLCPP_ERROR(
       get_logger(),
       "CarlikeBotSystemHardware::on_init() - Failed to initialize, "
-      "because the number of joints %ld is not 2.",
+      "because the number of joints %ld is not 4.",
       info_.joints.size());
     return hardware_interface::CallbackReturn::ERROR;
   }
@@ -146,9 +146,15 @@ hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_init(
   hw_stop_sec_ = std::stod(info_.hardware_parameters["example_param_hw_stop_duration_sec"]);
   // // END: This part here is for exemplary purposes - Please do not copy to your production code
 
-  hw_interfaces_["steering"] = Joint("virtual_front_wheel_joint");
+  // hw_interfaces_["steering"] = Joint("virtual_front_wheel_joint");
 
-  hw_interfaces_["traction"] = Joint("virtual_rear_wheel_joint");
+  // hw_interfaces_["traction"] = Joint("virtual_rear_wheel_joint");
+
+  hw_interfaces_["steering_left"] = Joint("front_left_wheel_joint");
+  hw_interfaces_["steering_right"] = Joint("front_right_wheel_joint");
+
+  hw_interfaces_["traction_left"] = Joint("rear_left_wheel_joint");
+  hw_interfaces_["traction_right"] = Joint("rear_right_wheel_joint");
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -163,7 +169,7 @@ std::vector<hardware_interface::StateInterface> CarlikeBotSystemHardware::export
       hardware_interface::StateInterface(
         joint.second.joint_name, hardware_interface::HW_IF_POSITION, &joint.second.state.position));
 
-    if (joint.first == "traction")
+    if (joint.first.find("traction") != std::string::npos)
     {
       state_interfaces.emplace_back(
         hardware_interface::StateInterface(
@@ -189,14 +195,14 @@ CarlikeBotSystemHardware::export_command_interfaces()
 
   for (auto & joint : hw_interfaces_)
   {
-    if (joint.first == "steering")
+    if (joint.first.find("steering") != std::string::npos)
     {
       command_interfaces.emplace_back(
         hardware_interface::CommandInterface(
           joint.second.joint_name, hardware_interface::HW_IF_POSITION,
           &joint.second.command.position));
     }
-    else if (joint.first == "traction")
+    else if (joint.first.find("traction") != std::string::npos)
     {
       command_interfaces.emplace_back(
         hardware_interface::CommandInterface(
@@ -231,13 +237,13 @@ hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_activate(
   {
     joint.second.state.position = 0.0;
 
-    if (joint.first == "traction")
+    if (joint.first.find("traction") != std::string::npos)
     {
       joint.second.state.velocity = 0.0;
       joint.second.command.velocity = 0.0;
     }
 
-    else if (joint.first == "steering")
+    else if (joint.first.find("steering") != std::string::npos)
     {
       joint.second.command.position = 0.0;
     }
@@ -270,25 +276,38 @@ hardware_interface::return_type CarlikeBotSystemHardware::read(
 {
   // BEGIN: This part here is for exemplary purposes - Please do not copy to your production code
 
-  hw_interfaces_["steering"].state.position = hw_interfaces_["steering"].command.position;
+  hw_interfaces_["steering_left"].state.position = hw_interfaces_["steering_left"].command.position;
+  hw_interfaces_["steering_right"].state.position = hw_interfaces_["steering_right"].command.position;
 
-  hw_interfaces_["traction"].state.velocity = hw_interfaces_["traction"].command.velocity;
-  hw_interfaces_["traction"].state.position +=
-    hw_interfaces_["traction"].state.velocity * period.seconds();
+  hw_interfaces_["traction_left"].state.velocity = hw_interfaces_["traction_left"].command.velocity;
+  hw_interfaces_["traction_left"].state.position +=
+    hw_interfaces_["traction_left"].state.velocity * period.seconds();
+
+  hw_interfaces_["traction_right"].state.velocity = hw_interfaces_["traction_right"].command.velocity;
+  hw_interfaces_["traction_right"].state.position +=
+    hw_interfaces_["traction_right"].state.velocity * period.seconds();
 
   std::stringstream ss;
   ss << "Reading states:";
 
   ss << std::fixed << std::setprecision(2) << std::endl
-     << "\t"
-     << "position: " << hw_interfaces_["steering"].state.position << " for joint '"
-     << hw_interfaces_["steering"].joint_name.c_str() << "'" << std::endl
-     << "\t"
-     << "position: " << hw_interfaces_["traction"].state.position << " for joint '"
-     << hw_interfaces_["traction"].joint_name.c_str() << "'" << std::endl
-     << "\t"
-     << "velocity: " << hw_interfaces_["traction"].state.velocity << " for joint '"
-     << hw_interfaces_["traction"].joint_name.c_str() << "'";
+     << "\t" << "position: " << hw_interfaces_["steering_left"].state.position
+     << " for joint '" << hw_interfaces_["steering_left"].joint_name.c_str() << "'" << std::endl
+
+     << "\t" << "position: " << hw_interfaces_["steering_right"].state.position
+     << " for joint '" << hw_interfaces_["steering_right"].joint_name.c_str() << "'" << std::endl
+
+     << "\t" << "position: " << hw_interfaces_["traction_left"].state.position
+     << " for joint '" << hw_interfaces_["traction_left"].joint_name.c_str() << "'" << std::endl
+
+     << "\t" << "velocity: " << hw_interfaces_["traction_left"].state.velocity
+     << " for joint '" << hw_interfaces_["traction_left"].joint_name.c_str() << "'" << std::endl
+
+     << "\t" << "position: " << hw_interfaces_["traction_right"].state.position
+     << " for joint '" << hw_interfaces_["traction_right"].joint_name.c_str() << "'" << std::endl
+
+     << "\t" << "velocity: " << hw_interfaces_["traction_right"].state.velocity
+     << " for joint '" << hw_interfaces_["traction_right"].joint_name.c_str() << "'";
 
   RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500, "%s", ss.str().c_str());
 
@@ -305,12 +324,18 @@ hardware_interface::return_type ros2_control_demo_example_11 ::CarlikeBotSystemH
   ss << "Writing commands:";
 
   ss << std::fixed << std::setprecision(2) << std::endl
-     << "\t"
-     << "position: " << hw_interfaces_["steering"].command.position << " for joint '"
-     << hw_interfaces_["steering"].joint_name.c_str() << "'" << std::endl
-     << "\t"
-     << "velocity: " << hw_interfaces_["traction"].command.velocity << " for joint '"
-     << hw_interfaces_["traction"].joint_name.c_str() << "'";
+
+     << "\t" << "position: " << hw_interfaces_["steering_left"].command.position
+     << " for joint '" << hw_interfaces_["steering_left"].joint_name.c_str() << "'" << std::endl
+
+     << "\t" << "position: " << hw_interfaces_["steering_right"].command.position
+     << " for joint '" << hw_interfaces_["steering_right"].joint_name.c_str() << "'" << std::endl
+
+     << "\t" << "velocity: " << hw_interfaces_["traction_left"].command.velocity
+     << " for joint '" << hw_interfaces_["traction_left"].joint_name.c_str() << "'" << std::endl
+
+     << "\t" << "velocity: " << hw_interfaces_["traction_right"].command.velocity
+     << " for joint '" << hw_interfaces_["traction_right"].joint_name.c_str() << "'";
 
   RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500, "%s", ss.str().c_str());
   // END: This part here is for exemplary purposes - Please do not copy to your production code
