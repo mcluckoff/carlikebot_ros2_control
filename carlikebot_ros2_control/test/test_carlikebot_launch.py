@@ -56,11 +56,11 @@ def generate_test_description():
     launch_include = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(
-                get_package_share_directory("ros2_control_demo_example_11"),
+                get_package_share_directory("carlikebot_ros2_control"),
                 "launch/carlikebot.launch.py",
             )
         ),
-        launch_arguments={"gui": "false", "remap_odometry_tf": "true"}.items(),
+        launch_arguments={"gui": "false"}.items(),
     )
 
     return LaunchDescription([launch_include, ReadyToTest()])
@@ -102,11 +102,10 @@ class TestFixture(unittest.TestCase):
         )
 
     def test_remapped_topic(self):
-        # we don't want to implement a tf lookup here
-        # so just check if the unmapped topic is not published
+        # test if the remapping of the odometry topic is disabled
         old_topic = "/bicycle_steering_controller/tf_odometry"
         wait_for_topics = WaitForTopics([(old_topic, TFMessage)])
-        assert not wait_for_topics.wait(), f"Topic '{old_topic}' found, but should be remapped!"
+        assert wait_for_topics.wait(), f"Topic '{old_topic}' not found!"
         wait_for_topics.shutdown()
 
 

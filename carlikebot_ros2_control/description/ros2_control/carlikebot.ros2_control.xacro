@@ -5,7 +5,7 @@
 
     <ros2_control name="${name}" type="system">
       <hardware>
-        <plugin>ros2_control_demo_example_11/CarlikeBotSystemHardware</plugin>
+        <plugin>carlikebot_ros2_control/CarlikeBotSystemHardware</plugin>
         <param name="example_param_hw_start_duration_sec">0</param>
         <param name="example_param_hw_stop_duration_sec">3.0</param>
         <param name="front_left_wheel_joint_name">${prefix}front_left_wheel_joint</param>

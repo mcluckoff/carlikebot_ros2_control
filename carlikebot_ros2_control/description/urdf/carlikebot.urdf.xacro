@@ -9,7 +9,7 @@
   <xacro:include filename="$(find ros2_control_demo_description)/carlikebot/urdf/carlikebot.materials.xacro" />
 
   <!-- Import carlikebot ros2_control description -->
-  <xacro:include filename="$(find ros2_control_demo_example_11)/ros2_control/carlikebot.ros2_control.xacro" />
+  <xacro:include filename="$(find carlikebot_ros2_control)/ros2_control/carlikebot.ros2_control.xacro" />
 
   <xacro:carlikebot prefix="$(arg prefix)" />
 

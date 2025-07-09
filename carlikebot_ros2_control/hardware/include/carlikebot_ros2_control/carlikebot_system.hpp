@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef ROS2_CONTROL_DEMO_EXAMPLE_11__CARLIKEBOT_SYSTEM_HPP_
-#define ROS2_CONTROL_DEMO_EXAMPLE_11__CARLIKEBOT_SYSTEM_HPP_
+#ifndef CARLIKEBOT_ROS2_CONTROL__CARLIKEBOT_SYSTEM_HPP_
+#define CARLIKEBOT_ROS2_CONTROL__CARLIKEBOT_SYSTEM_HPP_
 
 #include <map>
 #include <memory>
@@ -36,7 +36,7 @@
 
 #include "arduino_comms.hpp"
 
-namespace ros2_control_demo_example_11
+namespace carlikebot_ros2_control
 {
 struct Config
 {
@@ -147,6 +147,6 @@ private:
   std::map<std::string, Joint> hw_interfaces_;
 };
 
-}  // namespace ros2_control_demo_example_11
+}  // namespace carlikebot_ros2_control
 
-#endif  // ROS2_CONTROL_DEMO_EXAMPLE_11__CARLIKEBOT_SYSTEM_HPP_
+#endif  // CARLIKEBOT_ROS2_CONTROL__CARLIKEBOT_SYSTEM_HPP_

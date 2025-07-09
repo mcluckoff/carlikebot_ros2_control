@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(ros2_control_demo_example_11 LANGUAGES CXX)
+project(carlikebot_ros2_control LANGUAGES CXX)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Clang)")
   add_compile_options(-Wall -Wextra)
@@ -25,40 +25,40 @@ endforeach()
 
 ## COMPILE
 add_library(
-  ros2_control_demo_example_11
+  carlikebot_ros2_control
   SHARED
   hardware/carlikebot_system.cpp
 )
-target_compile_features(ros2_control_demo_example_11 PUBLIC cxx_std_17)
-target_include_directories(ros2_control_demo_example_11 PUBLIC
+target_compile_features(carlikebot_ros2_control PUBLIC cxx_std_17)
+target_include_directories(carlikebot_ros2_control PUBLIC
 $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/hardware/include>
-$<INSTALL_INTERFACE:include/ros2_control_demo_example_11>
+$<INSTALL_INTERFACE:include/carlikebot_ros2_control>
 )
 ament_target_dependencies(
-  ros2_control_demo_example_11 PUBLIC
+  carlikebot_ros2_control PUBLIC
   ${THIS_PACKAGE_INCLUDE_DEPENDS}
 )
 
-target_link_libraries(ros2_control_demo_example_11 PUBLIC serial)
+target_link_libraries(carlikebot_ros2_control PUBLIC serial)
 
 # Export hardware plugins
-pluginlib_export_plugin_description_file(hardware_interface ros2_control_demo_example_11.xml)
+pluginlib_export_plugin_description_file(hardware_interface carlikebot_ros2_control.xml)
 
 # INSTALL
 install(
   DIRECTORY hardware/include/
-  DESTINATION include/ros2_control_demo_example_11
+  DESTINATION include/carlikebot_ros2_control
 )
 install(
   DIRECTORY description/launch description/ros2_control description/urdf
-  DESTINATION share/ros2_control_demo_example_11
+  DESTINATION share/carlikebot_ros2_control
 )
 install(
   DIRECTORY bringup/launch bringup/config
-  DESTINATION share/ros2_control_demo_example_11
+  DESTINATION share/carlikebot_ros2_control
 )
-install(TARGETS ros2_control_demo_example_11
-  EXPORT export_ros2_control_demo_example_11
+install(TARGETS carlikebot_ros2_control
+  EXPORT export_carlikebot_ros2_control
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
@@ -74,6 +74,6 @@ if(BUILD_TESTING)
 endif()
 
 ## EXPORTS
-ament_export_targets(export_ros2_control_demo_example_11 HAS_LIBRARY_TARGET)
+ament_export_targets(export_carlikebot_ros2_control HAS_LIBRARY_TARGET)
 ament_export_dependencies(${THIS_PACKAGE_INCLUDE_DEPENDS})
 ament_package()

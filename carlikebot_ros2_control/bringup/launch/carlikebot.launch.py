@@ -50,7 +50,7 @@ def generate_launch_description():
             PathJoinSubstitution([FindExecutable(name="xacro")]),
             " ",
             PathJoinSubstitution(
-                [FindPackageShare("ros2_control_demo_example_11"), "urdf", "carlikebot.urdf.xacro"]
+                [FindPackageShare("carlikebot_ros2_control"), "urdf", "carlikebot.urdf.xacro"]
             ),
         ]
     )
@@ -58,7 +58,7 @@ def generate_launch_description():
 
     robot_controllers = PathJoinSubstitution(
         [
-            FindPackageShare("ros2_control_demo_example_11"),
+            FindPackageShare("carlikebot_ros2_control"),
             "config",
             "carlikebot_controllers.yaml",
         ]
