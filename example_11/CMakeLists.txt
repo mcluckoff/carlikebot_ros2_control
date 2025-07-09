@@ -39,6 +39,8 @@ ament_target_dependencies(
   ${THIS_PACKAGE_INCLUDE_DEPENDS}
 )
 
+target_link_libraries(ros2_control_demo_example_11 PUBLIC serial)
+
 # Export hardware plugins
 pluginlib_export_plugin_description_file(hardware_interface ros2_control_demo_example_11.xml)
 

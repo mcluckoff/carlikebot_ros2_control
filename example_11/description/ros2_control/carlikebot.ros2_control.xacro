@@ -8,6 +8,20 @@
         <plugin>ros2_control_demo_example_11/CarlikeBotSystemHardware</plugin>
         <param name="example_param_hw_start_duration_sec">0</param>
         <param name="example_param_hw_stop_duration_sec">3.0</param>
+        <param name="front_left_wheel_joint_name">${prefix}front_left_wheel_joint</param>
+        <param name="front_right_wheel_joint_name">${prefix}front_right_wheel_joint</param>
+        <param name="rear_left_wheel_joint_name">${prefix}rear_left_wheel_joint</param>
+        <param name="rear_right_wheel_joint_name">${prefix}rear_right_wheel_joint</param>
+        <param name="loop_rate">30</param>
+        <param name="device">/dev/serial/by-path/platform-fd500000.pcie-pci-0000:01:00.0-usb-0:1.3:1.0-port0</param>
+        <param name="baud_rate">57600</param>
+        <param name="timeout_ms">2000</param>
+        <param name="enc_counts_per_rev_traction">4200</param>
+        <param name="enc_counts_per_rev_steering">4200</param>
+        <param name="pid_p">20</param>
+        <param name="pid_d">12</param>
+        <param name="pid_i">0</param>
+        <param name="pid_o">50</param>
       </hardware>
       <!-- <joint name="${prefix}virtual_front_wheel_joint">
         <command_interface name="position"/>
