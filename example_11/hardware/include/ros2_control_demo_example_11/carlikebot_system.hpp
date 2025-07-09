@@ -20,6 +20,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <cmath>
 
 #include "hardware_interface/handle.hpp"
 #include "hardware_interface/hardware_info.hpp"
@@ -33,8 +34,28 @@
 #include "rclcpp_lifecycle/node_interfaces/lifecycle_node_interface.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 
+#include "arduino_comms.hpp"
+
 namespace ros2_control_demo_example_11
 {
+struct Config
+{
+  std::string front_left_wheel_joint_name = "";
+  std::string front_right_wheel_joint_name = "";
+  std::string rear_left_wheel_joint_name = "";
+  std::string rear_right_wheel_joint_name = "";
+  float loop_rate = 0.0;
+  std::string device = "";
+  int baud_rate = 0;
+  int timeout_ms = 0;
+  int enc_counts_per_rev_traction = 0;
+  int enc_counts_per_rev_steering = 0;
+  int pid_p = 0;
+  int pid_d = 0;
+  int pid_i = 0;
+  int pid_o = 0;
+};
+
 struct JointValue
 {
   double position{0.0};
@@ -44,10 +65,12 @@ struct JointValue
 
 struct Joint
 {
-  explicit Joint(const std::string & name) : joint_name(name)
+  explicit Joint(const std::string & name, int enc_counts_per_rev) : joint_name(name)
   {
     state = JointValue();
     command = JointValue();
+
+    rad_per_enc_count = (2 * M_PI) / enc_counts_per_rev;
   }
 
   Joint() = default;
@@ -55,6 +78,14 @@ struct Joint
   std::string joint_name;
   JointValue state;
   JointValue command;
+
+  int enc = 0;
+  double rad_per_enc_count = 0;
+
+  double calc_enc_angle()
+  {
+    return enc * rad_per_enc_count;
+  }
 };
 class CarlikeBotSystemHardware : public hardware_interface::SystemInterface
 {
@@ -67,6 +98,12 @@ public:
   std::vector<hardware_interface::StateInterface> export_state_interfaces() override;
 
   std::vector<hardware_interface::CommandInterface> export_command_interfaces() override;
+
+  hardware_interface::CallbackReturn on_configure(
+    const rclcpp_lifecycle::State & previous_state) override;
+
+  hardware_interface::CallbackReturn on_cleanup(
+    const rclcpp_lifecycle::State & previous_state) override;
 
   hardware_interface::CallbackReturn on_activate(
     const rclcpp_lifecycle::State & previous_state) override;
@@ -93,6 +130,10 @@ public:
   rclcpp::Clock::SharedPtr get_clock() const { return clock_; }
 
 private:
+
+  ArduinoComms comms_;
+  Config cfg_;
+
   // Parameters for the CarlikeBot simulation
   double hw_start_sec_;
   double hw_stop_sec_;

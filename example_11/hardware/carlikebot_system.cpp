@@ -140,6 +140,28 @@ hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_init(
     }
   }
 
+  cfg_.front_left_wheel_joint_name = info_.hardware_parameters["front_left_wheel_joint_name"];
+  cfg_.front_right_wheel_joint_name = info_.hardware_parameters["front_right_wheel_joint_name"];
+  cfg_.rear_left_wheel_joint_name = info_.hardware_parameters["rear_left_wheel_joint_name"];  
+  cfg_.rear_right_wheel_joint_name = info_.hardware_parameters["rear_right_wheel_joint_name"];
+  cfg_.loop_rate = std::stof(info_.hardware_parameters["loop_rate"]);
+  cfg_.device = info_.hardware_parameters["device"];
+  cfg_.baud_rate = std::stoi(info_.hardware_parameters["baud_rate"]);
+  cfg_.timeout_ms = std::stoi(info_.hardware_parameters["timeout_ms"]);
+  cfg_.enc_counts_per_rev_traction = std::stoi(info_.hardware_parameters["enc_counts_per_rev_traction"]);
+  cfg_.enc_counts_per_rev_steering = std::stoi(info_.hardware_parameters["enc_counts_per_rev_steering"]);
+  if (info_.hardware_parameters.count("pid_p") > 0)
+  {
+    cfg_.pid_p = std::stoi(info_.hardware_parameters["pid_p"]);
+    cfg_.pid_d = std::stoi(info_.hardware_parameters["pid_d"]);
+    cfg_.pid_i = std::stoi(info_.hardware_parameters["pid_i"]);
+    cfg_.pid_o = std::stoi(info_.hardware_parameters["pid_o"]);
+  }
+  else
+  {
+    RCLCPP_INFO(get_logger(), "PID values not supplied, using defaults.");
+  }
+
   // // BEGIN: This part here is for exemplary purposes - Please do not copy to your production
   // code
   hw_start_sec_ = std::stod(info_.hardware_parameters["example_param_hw_start_duration_sec"]);
@@ -150,11 +172,11 @@ hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_init(
 
   // hw_interfaces_["traction"] = Joint("virtual_rear_wheel_joint");
 
-  hw_interfaces_["steering_left"] = Joint("front_left_wheel_joint");
-  hw_interfaces_["steering_right"] = Joint("front_right_wheel_joint");
+  hw_interfaces_["steering_left"] = Joint(cfg_.front_left_wheel_joint_name, cfg_.enc_counts_per_rev_steering);
+  hw_interfaces_["steering_right"] = Joint(cfg_.front_right_wheel_joint_name, cfg_.enc_counts_per_rev_steering);
 
-  hw_interfaces_["traction_left"] = Joint("rear_left_wheel_joint");
-  hw_interfaces_["traction_right"] = Joint("rear_right_wheel_joint");
+  hw_interfaces_["traction_left"] = Joint(cfg_.rear_left_wheel_joint_name, cfg_.enc_counts_per_rev_traction);
+  hw_interfaces_["traction_right"] = Joint(cfg_.rear_right_wheel_joint_name, cfg_.enc_counts_per_rev_traction);
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -222,6 +244,33 @@ CarlikeBotSystemHardware::export_command_interfaces()
   return command_interfaces;
 }
 
+hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_configure(
+  const rclcpp_lifecycle::State & /*previous_state*/)
+{
+  RCLCPP_INFO(rclcpp::get_logger("CarlikeBotSystemHardware"), "Configuring ...please wait...");
+  if (comms_.connected())
+  {
+    comms_.disconnect();
+  }
+  comms_.connect(cfg_.device, cfg_.baud_rate, cfg_.timeout_ms);
+  RCLCPP_INFO(rclcpp::get_logger("CarlikeBotSystemHardware"), "Successfully configured!");
+
+  return hardware_interface::CallbackReturn::SUCCESS;
+}
+
+hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_cleanup(
+  const rclcpp_lifecycle::State & /*previous_state*/)
+{
+  RCLCPP_INFO(rclcpp::get_logger("CarlikeBotSystemHardware"), "Cleaning up ...please wait...");
+  if (comms_.connected())
+  {
+    comms_.disconnect();
+  }
+  RCLCPP_INFO(rclcpp::get_logger("CarlikeBotSystemHardware"), "Successfully cleaned up!");
+
+  return hardware_interface::CallbackReturn::SUCCESS;
+}
+
 hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_activate(
   const rclcpp_lifecycle::State & /*previous_state*/)
 {
@@ -249,6 +298,15 @@ hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_activate(
     }
   }
 
+  if (!comms_.connected())
+  {
+    return hardware_interface::CallbackReturn::ERROR;
+  }
+  if (cfg_.pid_p > 0)
+  {
+    comms_.set_pid_values(cfg_.pid_p,cfg_.pid_d,cfg_.pid_i,cfg_.pid_o);
+  }
+
   RCLCPP_INFO(get_logger(), "Successfully activated!");
 
   return hardware_interface::CallbackReturn::SUCCESS;
@@ -274,18 +332,39 @@ hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_deactivate(
 hardware_interface::return_type CarlikeBotSystemHardware::read(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & period)
 {
+  if (!comms_.connected())
+  {
+    return hardware_interface::return_type::ERROR;
+  }
+
+  comms_.read_encoder_values(hw_interfaces_["traction_right"].enc, hw_interfaces_["traction_left"].enc, 
+                            hw_interfaces_["steering_left"].enc, hw_interfaces_["steering_right"].enc);
+
+  double delta_seconds = period.seconds();
+
+  double pos_prev = hw_interfaces_["traction_left"].state.position;
+  hw_interfaces_["traction_left"].state.position = hw_interfaces_["traction_left"].calc_enc_angle();
+  hw_interfaces_["traction_left"].state.velocity = (hw_interfaces_["traction_left"].state.position - pos_prev) / delta_seconds;
+
+  pos_prev = hw_interfaces_["traction_right"].state.position;
+  hw_interfaces_["traction_right"].state.position = hw_interfaces_["traction_right"].calc_enc_angle();
+  hw_interfaces_["traction_right"].state.velocity = (hw_interfaces_["traction_right"].state.position - pos_prev) / delta_seconds;
+
+  hw_interfaces_["steering_left"].state.position = hw_interfaces_["steering_left"].calc_enc_angle();
+  hw_interfaces_["steering_right"].state.position = hw_interfaces_["steering_right"].calc_enc_angle();
+
   // BEGIN: This part here is for exemplary purposes - Please do not copy to your production code
 
-  hw_interfaces_["steering_left"].state.position = hw_interfaces_["steering_left"].command.position;
-  hw_interfaces_["steering_right"].state.position = hw_interfaces_["steering_right"].command.position;
+  // hw_interfaces_["steering_left"].state.position = hw_interfaces_["steering_left"].command.position;
+  // hw_interfaces_["steering_right"].state.position = hw_interfaces_["steering_right"].command.position;
 
-  hw_interfaces_["traction_left"].state.velocity = hw_interfaces_["traction_left"].command.velocity;
-  hw_interfaces_["traction_left"].state.position +=
-    hw_interfaces_["traction_left"].state.velocity * period.seconds();
+  // hw_interfaces_["traction_left"].state.velocity = hw_interfaces_["traction_left"].command.velocity;
+  // hw_interfaces_["traction_left"].state.position +=
+  //   hw_interfaces_["traction_left"].state.velocity * period.seconds();
 
-  hw_interfaces_["traction_right"].state.velocity = hw_interfaces_["traction_right"].command.velocity;
-  hw_interfaces_["traction_right"].state.position +=
-    hw_interfaces_["traction_right"].state.velocity * period.seconds();
+  // hw_interfaces_["traction_right"].state.velocity = hw_interfaces_["traction_right"].command.velocity;
+  // hw_interfaces_["traction_right"].state.position +=
+  //   hw_interfaces_["traction_right"].state.velocity * period.seconds();
 
   std::stringstream ss;
   ss << "Reading states:";
@@ -319,6 +398,19 @@ hardware_interface::return_type CarlikeBotSystemHardware::read(
 hardware_interface::return_type ros2_control_demo_example_11 ::CarlikeBotSystemHardware::write(
   const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
+  if (!comms_.connected())
+  {
+    return hardware_interface::return_type::ERROR;
+  }
+
+  // int traction_motor_l_counts_per_loop = hw_interfaces_["traction_left"].command.velocity / hw_interfaces_["traction_left"].rad_per_enc_count / cfg_.loop_rate;
+  int traction_motor_r_counts_per_loop = hw_interfaces_["traction_right"].command.velocity / hw_interfaces_["traction_right"].rad_per_enc_count / cfg_.loop_rate;
+  comms_.set_motor_values(traction_motor_r_counts_per_loop);
+
+  // int steering_l_target_enc_count = hw_interfaces_["steering_left"].command.position / hw_interfaces_["steering_left"].rad_per_enc_count;
+  int steering_r_target_enc_count = hw_interfaces_["steering_right"].command.position / hw_interfaces_["steering_right"].rad_per_enc_count;
+  comms_.set_steering_values(steering_r_target_enc_count);
+
   // BEGIN: This part here is for exemplary purposes - Please do not copy to your production code
   std::stringstream ss;
   ss << "Writing commands:";
