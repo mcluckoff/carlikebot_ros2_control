@@ -371,18 +371,22 @@ hardware_interface::return_type CarlikeBotSystemHardware::read(
 
   ss << std::fixed << std::setprecision(2) << std::endl
      << "\t" << "position: " << hw_interfaces_["steering_left"].state.position
+     << " (enc: " << hw_interfaces_["steering_left"].enc << ")"
      << " for joint '" << hw_interfaces_["steering_left"].joint_name.c_str() << "'" << std::endl
 
      << "\t" << "position: " << hw_interfaces_["steering_right"].state.position
+     << " (enc: " << hw_interfaces_["steering_right"].enc << ")"
      << " for joint '" << hw_interfaces_["steering_right"].joint_name.c_str() << "'" << std::endl
 
      << "\t" << "position: " << hw_interfaces_["traction_left"].state.position
+     << " (enc: " << hw_interfaces_["traction_left"].enc << ")"
      << " for joint '" << hw_interfaces_["traction_left"].joint_name.c_str() << "'" << std::endl
 
      << "\t" << "velocity: " << hw_interfaces_["traction_left"].state.velocity
      << " for joint '" << hw_interfaces_["traction_left"].joint_name.c_str() << "'" << std::endl
 
      << "\t" << "position: " << hw_interfaces_["traction_right"].state.position
+     << " (enc: " << hw_interfaces_["traction_right"].enc << ")"
      << " for joint '" << hw_interfaces_["traction_right"].joint_name.c_str() << "'" << std::endl
 
      << "\t" << "velocity: " << hw_interfaces_["traction_right"].state.velocity
@@ -418,15 +422,19 @@ hardware_interface::return_type carlikebot_ros2_control ::CarlikeBotSystemHardwa
   ss << std::fixed << std::setprecision(2) << std::endl
 
      << "\t" << "position: " << hw_interfaces_["steering_left"].command.position
+     << " (target enc: " << steering_r_target_enc_count << ")"
      << " for joint '" << hw_interfaces_["steering_left"].joint_name.c_str() << "'" << std::endl
 
      << "\t" << "position: " << hw_interfaces_["steering_right"].command.position
+     << " (target enc: " << steering_r_target_enc_count << ")"
      << " for joint '" << hw_interfaces_["steering_right"].joint_name.c_str() << "'" << std::endl
 
      << "\t" << "velocity: " << hw_interfaces_["traction_left"].command.velocity
+      // << " (counts/loop: " << traction_motor_r_counts_per_loop << ")"
      << " for joint '" << hw_interfaces_["traction_left"].joint_name.c_str() << "'" << std::endl
 
      << "\t" << "velocity: " << hw_interfaces_["traction_right"].command.velocity
+      // << " (counts/loop: " << traction_motor_r_counts_per_loop << ")"
      << " for joint '" << hw_interfaces_["traction_right"].joint_name.c_str() << "'";
 
   RCLCPP_INFO_THROTTLE(get_logger(), *get_clock(), 500, "%s", ss.str().c_str());
