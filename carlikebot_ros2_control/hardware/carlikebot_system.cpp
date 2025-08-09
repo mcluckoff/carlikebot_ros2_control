@@ -389,7 +389,7 @@ hardware_interface::return_type CarlikeBotSystemHardware::read(
   //   hw_interfaces_["traction_right"].state.velocity * period.seconds();
 
   // --- Synthesize passive front spin states so TF shows up in RViz ---
-  const double delta_seconds = period.seconds();
+  delta_seconds = period.seconds();
   const double omega_avg = 0.5 * (
     hw_interfaces_["traction_left"].state.velocity +
     hw_interfaces_["traction_right"].state.velocity);
