@@ -130,6 +130,23 @@ public:
   rclcpp::Clock::SharedPtr get_clock() const { return clock_; }
 
 private:
+  // --- Name-based classification helpers (simple find-based) ---
+  inline static bool is_front(const std::string& n)  { return n.find("front") != std::string::npos; }
+  inline static bool is_rear (const std::string& n)  { return n.find("rear")  != std::string::npos; }
+  inline static bool is_steer(const std::string& n)  { return n.find("steer") != std::string::npos; }
+  inline static bool is_wheel(const std::string& n)  { return n.find("wheel") != std::string::npos; }
+  inline static bool is_left (const std::string& n)  { return n.find("left")  != std::string::npos; }
+  inline static bool is_right(const std::string& n)  { return n.find("right") != std::string::npos; }
+
+  // Convenience predicates
+  inline static bool is_front_steer(const std::string& n) { return is_front(n) && is_steer(n); }
+  inline static bool is_rear_drive(const std::string& n)  { return is_rear(n)  && is_wheel(n); }
+  inline static bool is_front_spin(const std::string& n)  { return is_front(n) && is_wheel(n) && !is_steer(n); }
+
+  // --- Grouped joint name lists filled at on_init() ---
+  std::vector<std::string> front_steer_names_;   // e.g., front_left_steering_joint, front_right_steering_joint
+  std::vector<std::string> rear_drive_names_;    // e.g., rear_left_wheel_joint, rear_right_wheel_joint
+  std::vector<std::string> front_spin_names_;    // e.g., front_left_wheel_joint, front_right_wheel_joint
 
   ArduinoComms comms_;
   Config cfg_;

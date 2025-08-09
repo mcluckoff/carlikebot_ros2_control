@@ -42,103 +42,108 @@ hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_init(
   clock_ = std::make_shared<rclcpp::Clock>(rclcpp::Clock());
 
   // Check if the number of joints is correct based on the mode of operation
-  if (info_.joints.size() != 4)
+  // if (info_.joints.size() != 6)
+  // {
+  //   RCLCPP_ERROR(
+  //     get_logger(),
+  //     "CarlikeBotSystemHardware::on_init() - Failed to initialize, "
+  //     "because the number of joints %ld is not 6.",
+  //     info_.joints.size());
+  //   return hardware_interface::CallbackReturn::ERROR;
+  // }
+  if (info_.joints.size() < 4 || info_.joints.size() > 6)
   {
     RCLCPP_ERROR(
       get_logger(),
-      "CarlikeBotSystemHardware::on_init() - Failed to initialize, "
-      "because the number of joints %ld is not 4.",
+      "CarlikeBotSystemHardware::on_init() - Expected 4..6 joints, got %ld.",
       info_.joints.size());
     return hardware_interface::CallbackReturn::ERROR;
   }
 
-  for (const hardware_interface::ComponentInfo & joint : info_.joints)
+  front_steer_names_.clear();
+  rear_drive_names_.clear();
+  front_spin_names_.clear();
+
+  for (const auto &j : info_.joints)
+{
+  const auto &name = j.name;
+  if (is_front_steer(name))      front_steer_names_.push_back(name);
+  else if (is_rear_drive(name))  rear_drive_names_.push_back(name);
+  else if (is_front_spin(name))  front_spin_names_.push_back(name);
+  else
   {
-    bool joint_is_steering = joint.name.find("front") != std::string::npos;
-
-    // Steering joints have a position command interface and a position state interface
-    if (joint_is_steering)
-    {
-      RCLCPP_INFO(get_logger(), "Joint '%s' is a steering joint.", joint.name.c_str());
-
-      if (joint.command_interfaces.size() != 1)
-      {
-        RCLCPP_FATAL(
-          get_logger(), "Joint '%s' has %zu command interfaces found. 1 expected.",
-          joint.name.c_str(), joint.command_interfaces.size());
-        return hardware_interface::CallbackReturn::ERROR;
-      }
-
-      if (joint.command_interfaces[0].name != hardware_interface::HW_IF_POSITION)
-      {
-        RCLCPP_FATAL(
-          get_logger(), "Joint '%s' has %s command interface. '%s' expected.", joint.name.c_str(),
-          joint.command_interfaces[0].name.c_str(), hardware_interface::HW_IF_POSITION);
-        return hardware_interface::CallbackReturn::ERROR;
-      }
-
-      if (joint.state_interfaces.size() != 1)
-      {
-        RCLCPP_FATAL(
-          get_logger(), "Joint '%s' has %zu state interface. 1 expected.", joint.name.c_str(),
-          joint.state_interfaces.size());
-        return hardware_interface::CallbackReturn::ERROR;
-      }
-
-      if (joint.state_interfaces[0].name != hardware_interface::HW_IF_POSITION)
-      {
-        RCLCPP_FATAL(
-          get_logger(), "Joint '%s' has %s state interface. '%s' expected.", joint.name.c_str(),
-          joint.state_interfaces[0].name.c_str(), hardware_interface::HW_IF_POSITION);
-        return hardware_interface::CallbackReturn::ERROR;
-      }
-    }
-    else
-    {
-      RCLCPP_INFO(get_logger(), "Joint '%s' is a drive joint.", joint.name.c_str());
-
-      // Drive joints have a velocity command interface and a velocity state interface
-      if (joint.command_interfaces.size() != 1)
-      {
-        RCLCPP_FATAL(
-          get_logger(), "Joint '%s' has %zu command interfaces found. 1 expected.",
-          joint.name.c_str(), joint.command_interfaces.size());
-        return hardware_interface::CallbackReturn::ERROR;
-      }
-
-      if (joint.command_interfaces[0].name != hardware_interface::HW_IF_VELOCITY)
-      {
-        RCLCPP_FATAL(
-          get_logger(), "Joint '%s' has %s command interface. '%s' expected.", joint.name.c_str(),
-          joint.command_interfaces[0].name.c_str(), hardware_interface::HW_IF_VELOCITY);
-        return hardware_interface::CallbackReturn::ERROR;
-      }
-
-      if (joint.state_interfaces.size() != 2)
-      {
-        RCLCPP_FATAL(
-          get_logger(), "Joint '%s' has %zu state interface. 2 expected.", joint.name.c_str(),
-          joint.state_interfaces.size());
-        return hardware_interface::CallbackReturn::ERROR;
-      }
-
-      if (joint.state_interfaces[0].name != hardware_interface::HW_IF_VELOCITY)
-      {
-        RCLCPP_FATAL(
-          get_logger(), "Joint '%s' has %s state interface. '%s' expected.", joint.name.c_str(),
-          joint.state_interfaces[1].name.c_str(), hardware_interface::HW_IF_VELOCITY);
-        return hardware_interface::CallbackReturn::ERROR;
-      }
-
-      if (joint.state_interfaces[1].name != hardware_interface::HW_IF_POSITION)
-      {
-        RCLCPP_FATAL(
-          get_logger(), "Joint '%s' has %s state interface. '%s' expected.", joint.name.c_str(),
-          joint.state_interfaces[1].name.c_str(), hardware_interface::HW_IF_POSITION);
-        return hardware_interface::CallbackReturn::ERROR;
-      }
-    }
+    RCLCPP_FATAL(get_logger(), "Unknown joint by naming: '%s'", name.c_str());
+    return hardware_interface::CallbackReturn::ERROR;
   }
+}
+
+// --- Sanity checks ---
+if (front_steer_names_.size() != 2)
+{
+  RCLCPP_FATAL(get_logger(), "Need exactly 2 front steering joints, found %zu.",
+               front_steer_names_.size());
+  return hardware_interface::CallbackReturn::ERROR;
+}
+if (rear_drive_names_.size() != 2)
+{
+  RCLCPP_FATAL(get_logger(), "Need exactly 2 rear drive wheel joints, found %zu.",
+               rear_drive_names_.size());
+  return hardware_interface::CallbackReturn::ERROR;
+}
+// front_spin_names_ may be 0 or 2 (two passive front wheel joints)
+if (!(front_spin_names_.empty() || front_spin_names_.size() == 2))
+{
+  RCLCPP_FATAL(get_logger(), "Front spin (passive) joints must be 0 or 2, found %zu.",
+               front_spin_names_.size());
+  return hardware_interface::CallbackReturn::ERROR;
+}
+
+// --- Interface-level validation per group ---
+auto validate_front_steer = [&](const hardware_interface::ComponentInfo &j) {
+  if (j.command_interfaces.size() != 1 ||
+      j.command_interfaces[0].name != hardware_interface::HW_IF_POSITION)
+    return false;
+  if (j.state_interfaces.size() != 1 ||
+      j.state_interfaces[0].name != hardware_interface::HW_IF_POSITION)
+    return false;
+  return true;
+};
+auto validate_rear_drive = [&](const hardware_interface::ComponentInfo &j) {
+  if (j.command_interfaces.size() != 1 ||
+      j.command_interfaces[0].name != hardware_interface::HW_IF_VELOCITY)
+    return false;
+  if (j.state_interfaces.size() != 2) return false;
+  bool has_pos=false, has_vel=false;
+  for (auto &si : j.state_interfaces) {
+    has_pos |= (si.name == hardware_interface::HW_IF_POSITION);
+    has_vel |= (si.name == hardware_interface::HW_IF_VELOCITY);
+  }
+  return has_pos && has_vel;
+};
+auto validate_front_spin = [&](const hardware_interface::ComponentInfo &j) {
+  if (!j.command_interfaces.empty()) return false; // passive: no command
+  bool has_pos=false;
+  for (auto &si : j.state_interfaces) {
+    has_pos |= (si.name == hardware_interface::HW_IF_POSITION);
+  }
+  return has_pos; // position state required; velocity optional
+};
+
+for (const auto &j : info_.joints)
+{
+  if (is_front_steer(j.name) && !validate_front_steer(j)) {
+    RCLCPP_FATAL(get_logger(), "Steering joint '%s' has wrong interfaces.", j.name.c_str());
+    return hardware_interface::CallbackReturn::ERROR;
+  }
+  if (is_rear_drive(j.name) && !validate_rear_drive(j)) {
+    RCLCPP_FATAL(get_logger(), "Rear drive joint '%s' has wrong interfaces.", j.name.c_str());
+    return hardware_interface::CallbackReturn::ERROR;
+  }
+  if (is_front_spin(j.name) && !validate_front_spin(j)) {
+    RCLCPP_FATAL(get_logger(), "Front spin (passive) joint '%s' has wrong interfaces.", j.name.c_str());
+    return hardware_interface::CallbackReturn::ERROR;
+  }
+}
 
   cfg_.front_left_wheel_joint_name = info_.hardware_parameters["front_left_wheel_joint_name"];
   cfg_.front_right_wheel_joint_name = info_.hardware_parameters["front_right_wheel_joint_name"];
@@ -172,11 +177,28 @@ hardware_interface::CallbackReturn CarlikeBotSystemHardware::on_init(
 
   // hw_interfaces_["traction"] = Joint("virtual_rear_wheel_joint");
 
-  hw_interfaces_["steering_left"] = Joint(cfg_.front_left_wheel_joint_name, cfg_.enc_counts_per_rev_steering);
-  hw_interfaces_["steering_right"] = Joint(cfg_.front_right_wheel_joint_name, cfg_.enc_counts_per_rev_steering);
+  // Steering (front) — use names from parameters to preserve your steering_left/right semantics
+  // cfg_.front_left_wheel_joint_name is actually a steering joint name in your config
+  hw_interfaces_["steering_left"]  =
+    Joint(cfg_.front_left_wheel_joint_name,  cfg_.enc_counts_per_rev_steering);
+  hw_interfaces_["steering_right"] =
+    Joint(cfg_.front_right_wheel_joint_name, cfg_.enc_counts_per_rev_steering);
 
-  hw_interfaces_["traction_left"] = Joint(cfg_.rear_left_wheel_joint_name, cfg_.enc_counts_per_rev_traction);
-  hw_interfaces_["traction_right"] = Joint(cfg_.rear_right_wheel_joint_name, cfg_.enc_counts_per_rev_traction);
+  // Rear drive
+  hw_interfaces_["traction_left"]  =
+    Joint(cfg_.rear_left_wheel_joint_name,   cfg_.enc_counts_per_rev_traction);
+  hw_interfaces_["traction_right"] =
+    Joint(cfg_.rear_right_wheel_joint_name,  cfg_.enc_counts_per_rev_traction);
+
+  // Passive front spin joints (optional, use real joint names as keys)
+  for (const auto &name : front_spin_names_) {
+    hw_interfaces_[name] = Joint(name, 1 /*dummy enc per rev*/);
+  }
+
+  if (!front_spin_names_.empty()) {
+    RCLCPP_INFO(get_logger(), "Passive front spin joints enabled: %s, %s",
+                front_spin_names_[0].c_str(), front_spin_names_[1].c_str());
+  }
 
   return hardware_interface::CallbackReturn::SUCCESS;
 }
@@ -365,6 +387,25 @@ hardware_interface::return_type CarlikeBotSystemHardware::read(
   // hw_interfaces_["traction_right"].state.velocity = hw_interfaces_["traction_right"].command.velocity;
   // hw_interfaces_["traction_right"].state.position +=
   //   hw_interfaces_["traction_right"].state.velocity * period.seconds();
+
+  // --- Synthesize passive front spin states so TF shows up in RViz ---
+  const double delta_seconds = period.seconds();
+  const double omega_avg = 0.5 * (
+    hw_interfaces_["traction_left"].state.velocity +
+    hw_interfaces_["traction_right"].state.velocity);
+
+  auto update_passive = [&](const std::string& name) {
+    auto it = hw_interfaces_.find(name);
+    if (it == hw_interfaces_.end()) return;
+    it->second.state.velocity = omega_avg;
+    it->second.state.position += omega_avg * delta_seconds;
+    // Optional wrapping:
+    // it->second.state.position = std::remainder(it->second.state.position, 2*M_PI);
+  };
+
+for (const auto &name : front_spin_names_) {
+  update_passive(name);
+}
 
   std::stringstream ss;
   ss << "Reading states:";
