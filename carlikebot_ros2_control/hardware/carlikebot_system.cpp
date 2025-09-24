@@ -452,9 +452,15 @@ hardware_interface::return_type carlikebot_ros2_control ::CarlikeBotSystemHardwa
   int traction_motor_r_counts_per_loop = hw_interfaces_["traction_right"].command.velocity / hw_interfaces_["traction_right"].rad_per_enc_count / cfg_.loop_rate;
   comms_.set_motor_values(traction_motor_r_counts_per_loop);
 
-  // int steering_l_target_enc_count = hw_interfaces_["steering_left"].command.position / hw_interfaces_["steering_left"].rad_per_enc_count;
-  int steering_r_target_enc_count = hw_interfaces_["steering_right"].command.position / hw_interfaces_["steering_right"].rad_per_enc_count;
-  comms_.set_steering_values(steering_r_target_enc_count);
+  // Calculate average steering position for Ackermann steering with single motor
+  // This allows the controller to calculate different positions for left/right wheels
+  // while the hardware uses the average for the single steering motor
+  double steering_avg_position = 0.5 * (
+    hw_interfaces_["steering_left"].command.position + 
+    hw_interfaces_["steering_right"].command.position);
+  
+  int steering_target_enc_count = steering_avg_position / hw_interfaces_["steering_left"].rad_per_enc_count;
+  comms_.set_steering_values(steering_target_enc_count);
 
   // BEGIN: This part here is for exemplary purposes - Please do not copy to your production code
   std::stringstream ss;
@@ -463,11 +469,11 @@ hardware_interface::return_type carlikebot_ros2_control ::CarlikeBotSystemHardwa
   ss << std::fixed << std::setprecision(2) << std::endl
 
      << "\t" << "position: " << hw_interfaces_["steering_left"].command.position
-     << " (target enc: " << steering_r_target_enc_count << ")"
+     << " (target enc: " << steering_target_enc_count << ")"
      << " for joint '" << hw_interfaces_["steering_left"].joint_name.c_str() << "'" << std::endl
 
      << "\t" << "position: " << hw_interfaces_["steering_right"].command.position
-     << " (target enc: " << steering_r_target_enc_count << ")"
+     << " (target enc: " << steering_target_enc_count << ")"
      << " for joint '" << hw_interfaces_["steering_right"].joint_name.c_str() << "'" << std::endl
 
      << "\t" << "velocity: " << hw_interfaces_["traction_left"].command.velocity
